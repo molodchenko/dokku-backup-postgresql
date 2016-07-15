@@ -8,7 +8,8 @@ require 'uri'
 
 action = ARGV[0]
 
-remote_name = "dokku"
+remote_name = "dokku-dev"
+@dokku_user = "dokku"
 @ubuntu_user = "dev"
 @password = ""
 @backups_path_remote = "/home/#{@ubuntu_user}/db_dumps"
@@ -31,8 +32,9 @@ url = `git remote get-url --push #{remote_name}`
 parsed_url = url.match(/.*@(.*):.*/)
 remote_app_name = url.match(/.*:(.*)/)
 
-@username = "#{remote_name}"
+
 @hostname = "#{parsed_url[1]}"
+
 
 @dbhostname_cmd = "config:get #{remote_app_name[1]} DATABASE_HOSTNAME"
 @dbname_cmd = "config:get #{remote_app_name[1]} DATABASE_NAME"
@@ -43,13 +45,12 @@ remote_app_name = url.match(/.*:(.*)/)
 
 
 begin
-  ssh = Net::SSH.start(@hostname, @username)
+  ssh = Net::SSH.start(@hostname, @dokku_user)
   url = (ssh.exec!(@dburl_cmd))
   ssh.close
-  puts url
 end
 
-if url.nil? || url.empty?
+if !url.nil? || !url.empty?
 
 
   url = URI.parse(url.strip)
@@ -57,15 +58,10 @@ if url.nil? || url.empty?
     database_name = url.path[1..-1]
     database_password = url.password.gsub(/\n/,"").shellescape
     database_username = url.user
-    puts 'database_hostname   ' + database_hostname
-    puts 'database_name   ' + database_name
-    puts 'database_password   ' + database_password
-    puts 'database_username   ' +  database_username
-    puts "tratatat"
 else
 
 begin
-    ssh = Net::SSH.start(@hostname, @username)
+    ssh = Net::SSH.start(@hostname, @dokku_user)
     database_hostname = (ssh.exec!(@dbhostname_cmd)).gsub(/\n/,"").shellescape
     database_name = (ssh.exec!(@dbname_cmd)).gsub(/\n/,"").shellescape    
     database_password = (ssh.exec!(@dbpass_cmd)).gsub(/\n/,"").shellescape
@@ -95,6 +91,7 @@ end
 #-------------------------------------------------------------------------------------
 when "download"
 
+  puts 'downloading process'
 begin
     ssh = Net::SSH.start(@hostname, @ubuntu_user)
     backups_path = ssh.exec!(@last_backup)
@@ -102,11 +99,13 @@ begin
     file_name_last = backups_path.split[-1]
     exec("scp #{@ubuntu_user}@#{@hostname}:#{@backups_path_remote}/#{file_name_last} /tmp")
     puts file_name_last
+   puts 'downloading process finished' 
 end
 
 #--------------------------------------------------------------------------------------------
 when "restore"
    
+   puts 'restoring process'
     @pgpass_cmd = "touch ~/.pgpass && chmod 0600 ~/.pgpass"
     @credentials_cmd = "echo '*:*:*:#{database_username}:#{database_password}' > ~/.pgpass"
     @db_restore_cmd = "PGPASSFILE=~/.pgpass pg_restore --no-owner -h #{database_hostname} -p 5432 -d #{database_name} #{file_name_last}"
@@ -120,8 +119,9 @@ begin
     restore_db = ssh.exec!(@bd_restore_cmd)
     rmpgpass = ssh.exec!(@rmpgpass_cmd)
     ssh.close
+       puts 'restoring process finished'
 end
 else
-  puts 'Action does'n exist ' + action
+  puts 'Action does\'n exist ' + action
 
 end
