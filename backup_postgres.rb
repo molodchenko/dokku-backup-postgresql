@@ -9,10 +9,10 @@ require 'yaml'
 
 action = ARGV[0]
 
-remote_name = "dokku"
 @dokku_user = "dokku"
-@ubuntu_user = "dev"
-@password = ""
+remote_name = "dokku"     #set name of repository
+@ubuntu_user = "dev"      #set ubuntu user for backup            
+@password = ""            #set password
 @backups_path_remote = "/home/#{@ubuntu_user}/db_dumps"
 @last_backup = "ls -v #{@backups_path_remote}"
 
@@ -121,7 +121,7 @@ def restore_remote
       restore_db = ssh.exec!(@bd_restore_cmd)
       rmpgpass = ssh.exec!(@rmpgpass_cmd)
       ssh.close
-        puts 'restoring process finished'
+         puts 'restoring process finished'
   end
 end
 
@@ -130,14 +130,22 @@ def restore_localy
     dbconfig = YAML.load_file('config/database.yml')
 
     database_hostname=dbconfig['development']['host']
+    puts database_hostname
     database_name=dbconfig['development']['database']
+    puts database_name
     database_username=dbconfig['development']['username']
-    database_password=(dbconfig['development']['password']).gsub(/\n/,"").shellescape
+    puts database_username
+    database_password=(dbconfig['development']['password'])
+    puts database_password
+
+    puts @file_name_last
+
     system("touch ~/.pgpass && chmod 0600 ~/.pgpass")
     system("echo '*:*:*:#{database_username}:#{database_password}' > ~/.pgpass")
     system("PGPASSFILE=~/.pgpass pg_restore --no-owner -h #{database_hostname} -p 5432 -d #{database_name} /tmp/#{@file_name_last}")
     system("rm ~/.pgpass")
 end
+
 
 case action
 #----------------------------------------------------------------------------------------
